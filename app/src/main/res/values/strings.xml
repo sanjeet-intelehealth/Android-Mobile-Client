@@ -673,4 +673,7 @@
     <string name="failed_initial_synced">Failed refresh, check your internet connection. Please restart the app.</string>
     <string name="something_went_wrong">Something went wrong. Please contact support</string>
 
+    <string name="visit_closed">Visit Closed</string>
+    <string name="gender_male">Male</string>
+    <string name="gender_female">Female</string>
 </resources>

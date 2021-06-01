@@ -1,5 +1,7 @@
 package app.intelehealth.client.activities.homeActivity;
 
+import android.animation.ObjectAnimator;
+import android.animation.ValueAnimator;
 import android.app.Dialog;
 import android.app.ProgressDialog;
 import android.content.ActivityNotFoundException;
@@ -24,8 +26,10 @@ import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.animation.LinearInterpolator;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -98,11 +102,11 @@ public class HomeActivity extends AppCompatActivity {
 
     TextView lastSyncTextView;
     TextView lastSyncAgo;
-    Button manualSyncButton;
-    //IntentFilter filter;
-
+    CardView manualSyncButton;
+    IntentFilter filter;
+    Myreceiver reMyreceive;
     SyncUtils syncUtils = new SyncUtils();
-    CardView c1, c2, c3, c4, c5, c6;
+    CardView c2, c3, c4, c5, c6;
     private String key = null;
     private String licenseUrl = null;
 
@@ -111,11 +115,13 @@ public class HomeActivity extends AppCompatActivity {
     private String mindmapURL = "";
     private DownloadMindMaps mTask;
     ProgressDialog mProgressDialog;
+    private ImageView ivSync;
 
     private int versionCode = 0;
     private CompositeDisposable disposable = new CompositeDisposable();
-    TextView newPatient_textview, findPatients_textview, todaysVisits_textview,
+    TextView findPatients_textview, todaysVisits_textview,
             activeVisits_textview, videoLibrary_textview, help_textview;
+    private ObjectAnimator syncAnimator;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -139,8 +145,8 @@ public class HomeActivity extends AppCompatActivity {
         setTitle(R.string.title_activity_login);
         context = HomeActivity.this;
         customProgressDialog = new CustomProgressDialog(context);
-        /*syncBroadcastReceiver = new SyncBroadcastReceiver();
-        filter = new IntentFilter(AppConstants.SYNC_INTENT_ACTION);*/
+        reMyreceive = new Myreceiver();
+        filter = new IntentFilter("lasysync");
 
         sessionManager.setCurrentLang(getResources().getConfiguration().locale.toString());
 
@@ -151,7 +157,7 @@ public class HomeActivity extends AppCompatActivity {
         lastSyncAgo = findViewById(R.id.lastsyncago);
         manualSyncButton = findViewById(R.id.manualsyncbutton);
 //        manualSyncButton.setPaintFlags(Paint.UNDERLINE_TEXT_FLAG);
-        c1 = findViewById(R.id.cardview_newpat);
+//        c1 = findViewById(R.id.cardview_newpat);
         c2 = findViewById(R.id.cardview_find_patient);
         c3 = findViewById(R.id.cardview_today_patient);
         c4 = findViewById(R.id.cardview_active_patients);
@@ -159,8 +165,8 @@ public class HomeActivity extends AppCompatActivity {
         c6 = findViewById(R.id.cardview_help_whatsapp);
 
         //card textview referrenced to fix bug of localization not working in some cases...
-        newPatient_textview = findViewById(R.id.newPatient_textview);
-        newPatient_textview.setText(R.string.new_patient);
+        /*newPatient_textview = findViewById(R.id.newPatient_textview);
+        newPatient_textview.setText(R.string.new_patient);*/
 
         findPatients_textview = findViewById(R.id.findPatients_textview);
         findPatients_textview.setText(R.string.find_patient);
@@ -177,9 +183,8 @@ public class HomeActivity extends AppCompatActivity {
         help_textview = findViewById(R.id.help_textview);
         help_textview.setText(R.string.Whatsapp_Help_Cardview);
 
-        // manualSyncButton.setText(R.string.sync_now);
-        manualSyncButton.setText(R.string.refresh);
 
+//        manualSyncButton.setText(R.string.refresh);
         //Help section of watsapp...
         c6.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -195,7 +200,7 @@ public class HomeActivity extends AppCompatActivity {
                                         phoneNumberWithCountryCode, message))));
             }
         });
-        c1.setOnClickListener(new View.OnClickListener() {
+        /*c1.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 //Loads the config file values and check for the boolean value of privacy key.
@@ -211,7 +216,7 @@ public class HomeActivity extends AppCompatActivity {
                     startActivity(intent);
                 }
             }
-        });
+        });*/
         c2.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -240,14 +245,16 @@ public class HomeActivity extends AppCompatActivity {
             }
         });
 
-
+        ivSync = findViewById(R.id.iv_sync);
         lastSyncTextView.setText(getString(R.string.last_synced) + " \n" + sessionManager.getLastSyncDateTime());
 
 //        if (!sessionManager.getLastSyncDateTime().equalsIgnoreCase("- - - -")
 //                && Locale.getDefault().toString().equalsIgnoreCase("en")) {
 ////            lastSyncAgo.setText(CalculateAgoTime());
 //        }
-
+        syncAnimator = ObjectAnimator.ofFloat(ivSync, View.ROTATION, 0f, 359f).setDuration(1200);
+        syncAnimator.setRepeatCount(ValueAnimator.INFINITE);
+        syncAnimator.setInterpolator(new LinearInterpolator());
         manualSyncButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -255,11 +262,14 @@ public class HomeActivity extends AppCompatActivity {
 
                 if (isNetworkConnected()) {
                     Toast.makeText(context, getString(R.string.syncInProgress), Toast.LENGTH_LONG).show();
+                    ivSync.clearAnimation();
+                    syncAnimator.start();
+                    syncUtils.syncForeground("home");
                 } else {
                     Toast.makeText(context, context.getString(R.string.failed_synced), Toast.LENGTH_LONG).show();
                 }
 
-                syncUtils.syncForeground("home");
+//                syncUtils.syncForeground("home");
 //                if (!sessionManager.getLastSyncDateTime().equalsIgnoreCase("- - - -")
 //                        && Locale.getDefault().toString().equalsIgnoreCase("en")) {
 //                    lastSyncAgo.setText(sessionManager.getLastTimeAgo());
@@ -271,7 +281,6 @@ public class HomeActivity extends AppCompatActivity {
             mSyncProgressDialog.setTitle(R.string.syncInProgress);
             mSyncProgressDialog.setCancelable(false);
             mSyncProgressDialog.setProgress(i);
-
             mSyncProgressDialog.show();
 
             syncUtils.initialSync("home");
@@ -279,7 +288,6 @@ public class HomeActivity extends AppCompatActivity {
             // if initial setup done then we can directly set the periodic background sync job
             WorkManager.getInstance().enqueueUniquePeriodicWork(AppConstants.UNIQUE_WORK_NAME, ExistingPeriodicWorkPolicy.KEEP, AppConstants.PERIODIC_WORK_REQUEST);
         }
-
 
         showProgressbar();
     }
@@ -295,6 +303,7 @@ public class HomeActivity extends AppCompatActivity {
                 obj = new JSONObject(Objects.requireNonNullElse
                         (FileUtils.readFileRoot(AppConstants.CONFIG_FILE_NAME, context),
                                 String.valueOf(FileUtils.encodeJSON(context, AppConstants.CONFIG_FILE_NAME)))); //Load the config file
+
             } else {
                 obj = new JSONObject(String.valueOf(FileUtils.encodeJSON(this, AppConstants.CONFIG_FILE_NAME)));
             }
@@ -560,8 +569,7 @@ public class HomeActivity extends AppCompatActivity {
 
     @Override
     protected void onResume() {
-        //IntentFilter filter = new IntentFilter(AppConstants.SYNC_INTENT_ACTION);
-        //registerReceiver(syncBroadcastReceiver, filter);
+        //registerReceiver(reMyreceive, filter);
         checkAppVer();  //auto-update feature.
 //        lastSyncTextView.setText(getString(R.string.last_synced) + " \n" + sessionManager.getLastSyncDateTime());
         if (!sessionManager.getLastSyncDateTime().equalsIgnoreCase("- - - -")
@@ -587,7 +595,6 @@ public class HomeActivity extends AppCompatActivity {
             e.printStackTrace();
         }
     }
-
     private boolean keyVerified(String key) {
         //TODO: Verify License Key
         return true;
@@ -637,61 +644,15 @@ public class HomeActivity extends AppCompatActivity {
 
     }
 
-    private List<Integer> mTempSyncHelperList = new ArrayList<Integer>();
-    private BroadcastReceiver syncBroadcastReceiver = new BroadcastReceiver() {
+    public class Myreceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            Logger.logD("syncBroadcastReceiver", "onReceive! " + intent);
-
-            if (intent != null && intent.hasExtra(AppConstants.SYNC_INTENT_DATA_KEY)) {
-                int flagType = intent.getIntExtra(AppConstants.SYNC_INTENT_DATA_KEY, AppConstants.SYNC_FAILED);
-                if (sessionManager.isFirstTimeLaunched()) {
-                    if (flagType == AppConstants.SYNC_FAILED) {
-                        hideSyncProgressBar(false);
-                        /*Toast.makeText(context, R.string.failed_synced, Toast.LENGTH_SHORT).show();
-                        finish();*/
-                        new AlertDialog.Builder(HomeActivity.this)
-                                .setMessage(R.string.failed_initial_synced)
-                                .setPositiveButton(R.string.generic_ok, new DialogInterface.OnClickListener() {
-                                    @Override
-                                    public void onClick(DialogInterface dialog, int which) {
-                                        finish();
-                                    }
-
-                                }).setCancelable(false)
-
-                                .show();
-                    } else {
-                        mTempSyncHelperList.add(flagType);
-                        if (mTempSyncHelperList.contains(AppConstants.SYNC_PULL_DATA_DONE)
-//                                && mTempSyncHelperList.contains(AppConstants.SYNC_PUSH_DATA_DONE)
-                                /*&& mTempSyncHelperList.contains(AppConstants.SYNC_PATIENT_PROFILE_IMAGE_PUSH_DONE)
-                                && mTempSyncHelperList.contains(AppConstants.SYNC_OBS_IMAGE_PUSH_DONE)*/) {
-                            hideSyncProgressBar(true);
-                        }
-                    }
-                }
-            }
             lastSyncTextView.setText(getString(R.string.last_synced) + " \n" + sessionManager.getLastSyncDateTime());
-        }
-    };
+//          lastSyncAgo.setText(sessionManager.getLastTimeAgo());
 
-    private void hideSyncProgressBar(boolean isSuccess) {
-        if (mTempSyncHelperList != null) mTempSyncHelperList.clear();
-        if (mSyncProgressDialog != null && mSyncProgressDialog.isShowing()) {
-            mSyncProgressDialog.dismiss();
-            if (isSuccess) {
-
-                sessionManager.setFirstTimeLaunched(false);
-                sessionManager.setMigration(true);
-                // initial setup/sync done and now we can set the periodic background sync job
-                // given some delay after initial sync
-                new Handler().postDelayed(new Runnable() {
-                    @Override
-                    public void run() {
-                        WorkManager.getInstance().enqueueUniquePeriodicWork(AppConstants.UNIQUE_WORK_NAME, ExistingPeriodicWorkPolicy.KEEP, AppConstants.PERIODIC_WORK_REQUEST);
-                    }
-                }, 10000);
+            if (syncAnimator != null && syncAnimator.getCurrentPlayTime() > 200) {
+                syncAnimator.cancel();
+                syncAnimator.end();
             }
         }
     }
@@ -846,6 +807,71 @@ public class HomeActivity extends AppCompatActivity {
         );
 
     }
+    private List<Integer> mTempSyncHelperList = new ArrayList<Integer>();
+    private BroadcastReceiver syncBroadcastReceiver = new BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Logger.logD("syncBroadcastReceiver", "onReceive! " + intent);
 
+            if (intent != null && intent.hasExtra(AppConstants.SYNC_INTENT_DATA_KEY)) {
+                int flagType = intent.getIntExtra(AppConstants.SYNC_INTENT_DATA_KEY, AppConstants.SYNC_FAILED);
+                if (sessionManager.isFirstTimeLaunched()) {
+                    if (flagType == AppConstants.SYNC_FAILED) {
+                        hideSyncProgressBar(false);
+                        /*Toast.makeText(context, R.string.failed_synced, Toast.LENGTH_SHORT).show();
+                        finish();*/
+                        new AlertDialog.Builder(HomeActivity.this)
+                                .setMessage(R.string.failed_initial_synced)
+                                .setPositiveButton(R.string.generic_ok, new DialogInterface.OnClickListener() {
+                                    @Override
+                                    public void onClick(DialogInterface dialog, int which) {
+                                        finish();
+                                    }
+
+                                }).setCancelable(false)
+
+                                .show();
+                    } else {
+                        mTempSyncHelperList.add(flagType);
+                        if (mTempSyncHelperList.contains(AppConstants.SYNC_PULL_DATA_DONE)
+//                                && mTempSyncHelperList.contains(AppConstants.SYNC_PUSH_DATA_DONE)
+                                /*&& mTempSyncHelperList.contains(AppConstants.SYNC_PATIENT_PROFILE_IMAGE_PUSH_DONE)
+                                && mTempSyncHelperList.contains(AppConstants.SYNC_OBS_IMAGE_PUSH_DONE)*/) {
+                            hideSyncProgressBar(true);
+                        }
+                    }
+                }
+            }
+            lastSyncTextView.setText(getString(R.string.last_synced) + " \n" + sessionManager.getLastSyncDateTime());
+//          lastSyncAgo.setText(sessionManager.getLastTimeAgo());
+
+            if (syncAnimator != null && syncAnimator.getCurrentPlayTime() > 200) {
+                syncAnimator.cancel();
+                syncAnimator.end();
+            }
+        }
+    };
+
+    private void hideSyncProgressBar(boolean isSuccess) {
+        if (mTempSyncHelperList != null) mTempSyncHelperList.clear();
+        if (mSyncProgressDialog != null && mSyncProgressDialog.isShowing()) {
+            mSyncProgressDialog.dismiss();
+            if (isSuccess) {
+
+                sessionManager.setFirstTimeLaunched(false);
+                sessionManager.setMigration(true);
+                // initial setup/sync done and now we can set the periodic background sync job
+                // given some delay after initial sync
+                new Handler().postDelayed(new Runnable() {
+                    @Override
+                    public void run() {
+
+                        WorkManager.getInstance().enqueueUniquePeriodicWork(AppConstants.UNIQUE_WORK_NAME, ExistingPeriodicWorkPolicy.KEEP, AppConstants.PERIODIC_WORK_REQUEST);
+                    }
+                }, 10000);
+            }
+        }
+
+    }
 
 }

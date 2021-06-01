@@ -14,12 +14,14 @@
 
 package app.intelehealth.client.utilities;
 
+import android.content.Context;
 import android.widget.Spinner;
 
 import java.io.File;
 import java.util.List;
 
 import app.intelehealth.client.app.IntelehealthApplication;
+import app.intelehealth.client.R;
 
 public final class StringUtils {
     private static final String NULL_AS_STRING = "null";
@@ -204,8 +206,8 @@ public final class StringUtils {
         return val;
     }
 
-
     public static String switch_hi_en_housestructure(String val) {
+
         switch (val) {
             case "कच्चा घर":
                 val = "Kutcha House";
@@ -947,5 +949,16 @@ public final class StringUtils {
             return dobString;
         }
 
+    }
+
+    public static String getLocaleGender(Context context, String gender) {
+        switch (gender) {
+            case "M":
+                return context.getString(R.string.gender_male);
+            case "F":
+                return context.getString(R.string.gender_female);
+            default:
+                return gender;
+        }
     }
 }
